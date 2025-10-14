@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from flask_login import login_user, logout_user, login_required
+from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash
 from db import get_db_connection
 from models import User
@@ -49,10 +49,15 @@ def registrarse():
     return jsonify({"mensaje": "Usuario registrado con éxito"}), 201
 
 # =========================
-# Login
+# Login - CORREGIDO para aceptar GET y POST
 # =========================
-@auth_bp.route("/login", methods=["POST"])
+@auth_bp.route("/login", methods=["GET", "POST"])  # <- CAMBIADO A "GET", "POST"
 def login():
+    # Manejar solicitudes GET (para las redirecciones de Flask-Login)
+    if request.method == 'GET':
+        return jsonify({"error": "No autenticado"}), 401
+    
+    # Manejar solicitudes POST (login normal)
     data = request.json
     email = data.get("email")
     password = data.get("password")
@@ -84,3 +89,20 @@ def login():
 def logout():
     logout_user()
     return jsonify({"mensaje": "Sesión cerrada"})
+
+# =========================
+# Obtener usuario actual - NUEVA RUTA
+# =========================
+@auth_bp.route("/me", methods=["GET"])
+@login_required
+def get_current_user():
+    return jsonify({
+        "usuario": {
+            "id": current_user.id,
+            "nombre": current_user.nombre,
+            "email": current_user.email, 
+            "telefono": current_user.telefono,
+            "direccion": current_user.direccion,
+            "rol": current_user.rol
+        }
+    })
