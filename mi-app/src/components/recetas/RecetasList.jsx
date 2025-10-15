@@ -47,13 +47,87 @@ const RecetasList = () => {
       const producto = productos.find(p => p.id_producto === productoId);
       setProductoSeleccionado(producto);
       
+      console.log('📦 Producto seleccionado:', producto);
       const data = await recetasService.getRecetasPorProducto(productoId);
-      setRecetasProducto(data.recetas);
-      setCostoProduccion(data.costos.costo_total_produccion);
-      setMargenBruto(data.costos.margen_bruto);
-      setMargenPorcentaje(data.costos.margen_porcentaje);
+      console.log('📊 Datos recibidos del servicio:', data);
+      
+      // Verificar estructura de datos recibida
+      if (!data) {
+        console.warn('⚠️ El servicio retornó null o undefined');
+        setRecetasProducto([]);
+        setCostoProduccion(0);
+        setMargenBruto(0);
+        setMargenPorcentaje(0);
+        return;
+      }
+
+      // Diferentes posibles estructuras de respuesta
+      let recetasData = [];
+      let costoTotal = 0;
+      let margenBrutoCalc = 0;
+      let margenPorcentajeCalc = 0;
+
+      // Caso 1: Estructura con propiedad 'costos'
+      if (data.costos) {
+        console.log('✅ Estructura con propiedad "costos" encontrada');
+        recetasData = data.recetas || [];
+        costoTotal = data.costos.costo_total_produccion || 0;
+        margenBrutoCalc = data.costos.margen_bruto || 0;
+        margenPorcentajeCalc = data.costos.margen_porcentaje || 0;
+      }
+      // Caso 2: Estructura con propiedades directas
+      else if (data.recetas !== undefined) {
+        console.log('✅ Estructura con propiedades directas');
+        recetasData = data.recetas || [];
+        costoTotal = data.costo_total_produccion || data.costo_total || 0;
+        margenBrutoCalc = data.margen_bruto || 0;
+        margenPorcentajeCalc = data.margen_porcentaje || 0;
+      }
+      // Caso 3: Solo array de recetas - calcular costos manualmente
+      else if (Array.isArray(data)) {
+        console.log('✅ Solo array de recetas recibido - calculando costos manualmente');
+        recetasData = data;
+        costoTotal = data.reduce((total, receta) => total + (receta.costo_ingrediente || 0), 0);
+      }
+      // Caso 4: Estructura desconocida
+      else {
+        console.warn('❌ Estructura de datos desconocida:', data);
+        recetasData = [];
+        costoTotal = 0;
+      }
+
+      // Calcular márgenes si no se recibieron del servicio
+      if (producto && (margenBrutoCalc === 0 || margenPorcentajeCalc === 0)) {
+        const precioVenta = producto.precio || 0;
+        margenBrutoCalc = precioVenta - costoTotal;
+        margenPorcentajeCalc = precioVenta > 0 ? ((margenBrutoCalc / precioVenta) * 100) : 0;
+        
+        console.log('🧮 Márgenes calculados manualmente:', {
+          precioVenta,
+          costoTotal,
+          margenBrutoCalc,
+          margenPorcentajeCalc
+        });
+      }
+
+      console.log('📈 Valores finales:', {
+        recetas: recetasData.length,
+        costoTotal,
+        margenBrutoCalc,
+        margenPorcentajeCalc
+      });
+
+      setRecetasProducto(recetasData);
+      setCostoProduccion(costoTotal);
+      setMargenBruto(margenBrutoCalc);
+      setMargenPorcentaje(margenPorcentajeCalc);
+
     } catch (error) {
-      console.error('Error cargando recetas del producto:', error);
+      console.error('❌ Error cargando recetas del producto:', error);
+      setRecetasProducto([]);
+      setCostoProduccion(0);
+      setMargenBruto(0);
+      setMargenPorcentaje(0);
     }
   };
 
@@ -127,9 +201,11 @@ const RecetasList = () => {
       
       setShowModal(false);
       if (productoSeleccionado) {
-        cargarRecetasProducto(productoSeleccionado.id_producto);
+        // Forzar recarga completa de las recetas
+        await cargarRecetasProducto(productoSeleccionado.id_producto);
       }
-      cargarDatosIniciales();
+      await cargarDatosIniciales(); // Recargar datos generales
+      
     } catch (error) {
       console.error('Error guardando receta:', error);
       throw error;
@@ -215,7 +291,7 @@ const RecetasList = () => {
                   <div className="mb-2">
                     <strong>Margen de ganancia:</strong>
                     <span className={`fw-bold ${margenBruto > 0 ? 'text-success' : 'text-danger'} ms-2`}>
-                      {formatearMoneda(margenBruto)} ({margenPorcentaje}%)
+                      {formatearMoneda(margenBruto)} ({margenPorcentaje.toFixed(2)}%)
                     </span>
                   </div>
                   

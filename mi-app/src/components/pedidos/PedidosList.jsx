@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import './PedidosList.css';
 import { pedidosService } from '../../services/pedidosService';
+import { productosService } from '../../services/productosService';
+import PedidoForm from './PedidoForm';
+import EditarPedidoModal from './EditarPedidoModal';
 
 const PedidosList = () => {
   const [pedidos, setPedidos] = useState([]);
+  const [productos, setProductos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pedidoSeleccionado, setPedidoSeleccionado] = useState(null);
   const [detallesPedido, setDetallesPedido] = useState([]);
@@ -11,20 +15,27 @@ const PedidosList = () => {
   const [mostrarModalEstado, setMostrarModalEstado] = useState(false);
   const [pedidoParaCambiar, setPedidoParaCambiar] = useState(null);
   const [nuevoEstado, setNuevoEstado] = useState('');
+  const [mostrarModalNuevoPedido, setMostrarModalNuevoPedido] = useState(false);
+  const [mostrarModalEditarPedido, setMostrarModalEditarPedido] = useState(false);
+  const [pedidoParaEditar, setPedidoParaEditar] = useState(null);
 
   useEffect(() => {
-    cargarPedidos();
+    cargarDatosIniciales();
   }, []);
 
-  const cargarPedidos = async () => {
+  const cargarDatosIniciales = async () => {
     try {
       setLoading(true);
       setError('');
-      const data = await pedidosService.getPedidos();
-      setPedidos(data);
+      const [pedidosData, productosData] = await Promise.all([
+        pedidosService.getPedidos(),
+        productosService.getProductos()
+      ]);
+      setPedidos(pedidosData);
+      setProductos(productosData);
     } catch (error) {
-      console.error('Error cargando pedidos:', error);
-      setError('No se pudieron cargar los pedidos');
+      console.error('Error cargando datos:', error);
+      setError('No se pudieron cargar los datos');
     } finally {
       setLoading(false);
     }
@@ -54,6 +65,24 @@ const PedidosList = () => {
     setNuevoEstado('');
   };
 
+  const abrirModalNuevoPedido = () => {
+    setMostrarModalNuevoPedido(true);
+  };
+
+  const cerrarModalNuevoPedido = () => {
+    setMostrarModalNuevoPedido(false);
+  };
+
+  const abrirModalEditarPedido = (pedido) => {
+    setPedidoParaEditar(pedido);
+    setMostrarModalEditarPedido(true);
+  };
+
+  const cerrarModalEditarPedido = () => {
+    setMostrarModalEditarPedido(false);
+    setPedidoParaEditar(null);
+  };
+
   const actualizarEstadoPedido = async () => {
     if (!pedidoParaCambiar || !nuevoEstado) return;
 
@@ -71,6 +100,32 @@ const PedidosList = () => {
     } catch (error) {
       console.error('Error actualizando estado:', error);
       setError('No se pudo actualizar el estado del pedido');
+    }
+  };
+
+  const handleCrearPedido = async (pedidoData) => {
+    try {
+      setError('');
+      await pedidosService.createPedido(pedidoData);
+      await cargarDatosIniciales();
+      cerrarModalNuevoPedido();
+    } catch (error) {
+      console.error('Error creando pedido:', error);
+      setError('No se pudo crear el pedido');
+      throw error;
+    }
+  };
+
+  const handleEditarPedido = async (pedidoId, pedidoData) => {
+    try {
+      setError('');
+      await pedidosService.updatePedido(pedidoId, pedidoData);
+      await cargarDatosIniciales();
+      cerrarModalEditarPedido();
+    } catch (error) {
+      console.error('Error editando pedido:', error);
+      setError('No se pudo editar el pedido');
+      throw error;
     }
   };
 
@@ -98,7 +153,6 @@ const PedidosList = () => {
 
   const generarRecibo = async (pedido) => {
     try {
-      // Cargar los detalles del pedido para el recibo
       const detalles = await pedidosService.getDetallesPedido(pedido.id);
       
       const ventanaRecibo = window.open('', '_blank');
@@ -319,6 +373,12 @@ const PedidosList = () => {
     <div className="pedidos-container">
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2 className="mb-0">📦 Gestión de Pedidos</h2>
+        <button 
+          className="btn btn-success"
+          onClick={abrirModalNuevoPedido}
+        >
+          ➕ Nuevo Pedido
+        </button>
       </div>
 
       {error && (
@@ -419,7 +479,18 @@ const PedidosList = () => {
               <div className="card-body">
                 {detallesPedido.length > 0 ? (
                   <div>
-                    <h6>Productos del Pedido</h6>
+                    <div className="d-flex justify-content-between align-items-center mb-3">
+                      <h6 className="mb-0">Productos del Pedido</h6>
+                      <button 
+                        className="btn btn-warning btn-sm"
+                        onClick={() => {
+                          const pedido = pedidos.find(p => p.id === pedidoSeleccionado);
+                          if (pedido) abrirModalEditarPedido(pedido);
+                        }}
+                      >
+                        ✏️ Editar Pedido
+                      </button>
+                    </div>
                     <div className="table-responsive">
                       <table className="table table-sm">
                         <thead>
@@ -516,6 +587,26 @@ const PedidosList = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal para nuevo pedido */}
+      {mostrarModalNuevoPedido && (
+        <PedidoForm
+          productos={productos}
+          onSubmit={handleCrearPedido}
+          onClose={cerrarModalNuevoPedido}
+          titulo="➕ Crear Nuevo Pedido"
+        />
+      )}
+
+      {/* Modal para editar pedido */}
+      {mostrarModalEditarPedido && pedidoParaEditar && (
+        <EditarPedidoModal
+          pedido={pedidoParaEditar}
+          productos={productos}
+          onSubmit={handleEditarPedido}
+          onClose={cerrarModalEditarPedido}
+        />
       )}
     </div>
   );

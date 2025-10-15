@@ -100,9 +100,9 @@ function App() {
       default:
         return (
           <div className="dashboard">
-            <h2>Panel de Administración - Sweetland By Amy</h2>
+            <h2>Panel de Administración - Sweetland By Anny</h2>
             <div className="welcome-message">
-              <p>Bienvenido{user ? `, ${user.nombre}` : ''} al sistema de administración de Sweetland</p>
+              <p>Bienvenido{user ? `, ${user.nombre}` : ''} al sistema de administración de Sweetland by Anny</p>
               <p>Selecciona una sección del menú para comenzar</p>
             </div>
           </div>
@@ -135,7 +135,7 @@ function App() {
     <div className="app">
       <header className="app-header navbar navbar-expand-lg navbar-dark bg-primary">
         <div className="container-fluid">
-          <span className="navbar-brand fs-3 fw-bold">🎂 Sweetland Panel</span>
+          <span className="navbar-brand fs-3 fw-bold">🎂 Sweetland by Anny Panel Administrativo</span>
           
           <div className="navbar-nav ms-auto">
             {user ? (

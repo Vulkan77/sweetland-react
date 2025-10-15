@@ -10,6 +10,39 @@ logger = logging.getLogger(__name__)
 recetas_bp = Blueprint("recetas", __name__, url_prefix="/recetas")
 
 # ================================
+# Actualizar costo de producto automáticamente
+# ================================
+def actualizar_costo_producto(id_producto):
+    """Actualiza el costo_produccion en la tabla productos cuando cambia una receta"""
+    try:
+        cursor = mysql.connection.cursor()
+        
+        # Calcular nuevo costo total
+        cursor.execute("""
+            SELECT SUM(r.cantidad_necesaria * i.costo_unitario) as costo_total
+            FROM recetas r
+            LEFT JOIN ingredientes i ON r.id_ingrediente = i.id_ingrediente
+            WHERE r.id_producto = %s
+        """, (id_producto,))
+        resultado = cursor.fetchone()
+        nuevo_costo = float(resultado[0]) if resultado[0] else 0
+        
+        # Actualizar el producto
+        cursor.execute("""
+            UPDATE productos 
+            SET costo_produccion = %s 
+            WHERE id_producto = %s
+        """, (nuevo_costo, id_producto))
+        
+        mysql.connection.commit()
+        cursor.close()
+        logger.info(f"Costo actualizado para producto {id_producto}: ${nuevo_costo}")
+        
+    except Exception as e:
+        logger.error(f"Error actualizando costo producto {id_producto}: {str(e)}")
+        mysql.connection.rollback()
+
+# ================================
 # Obtener todas las recetas
 # ================================
 @recetas_bp.route("/", methods=["GET"])
@@ -160,8 +193,11 @@ def add_receta():
         VALUES (%s, %s, %s)
     """, (id_producto, id_ingrediente, cantidad_necesaria))
     mysql.connection.commit()
+    
+    # ACTUALIZAR COSTO DEL PRODUCTO AUTOMÁTICAMENTE
+    actualizar_costo_producto(id_producto)
+    
     cursor.close()
-
     return jsonify({"mensaje": "Receta agregada correctamente"})
 
 # ================================
@@ -201,6 +237,10 @@ def add_recetas_multiple():
             """, (id_producto, id_ingrediente, cantidad))
 
         mysql.connection.commit()
+        
+        # ACTUALIZAR COSTO DEL PRODUCTO AUTOMÁTICAMENTE
+        actualizar_costo_producto(id_producto)
+        
         cursor.close()
         return jsonify({"mensaje": f"{len(ingredientes)} ingredientes agregados a la receta"})
 
@@ -227,8 +267,11 @@ def update_receta(id):
         WHERE id_receta=%s
     """, (id_producto, id_ingrediente, cantidad_necesaria, id))
     mysql.connection.commit()
+    
+    # ACTUALIZAR COSTO DEL PRODUCTO AUTOMÁTICAMENTE
+    actualizar_costo_producto(id_producto)
+    
     cursor.close()
-
     return jsonify({"mensaje": "Receta actualizada correctamente"})
 
 # ================================
@@ -238,8 +281,20 @@ def update_receta(id):
 @login_required
 def delete_receta(id):
     cursor = mysql.connection.cursor()
+    
+    # PRIMERO obtener el id_producto antes de eliminar
+    cursor.execute("SELECT id_producto FROM recetas WHERE id_receta = %s", (id,))
+    resultado = cursor.fetchone()
+    id_producto = resultado[0] if resultado else None
+
+    # Luego eliminar
     cursor.execute("DELETE FROM recetas WHERE id_receta=%s", (id,))
     mysql.connection.commit()
+
+    # ACTUALIZAR COSTO DEL PRODUCTO AUTOMÁTICAMENTE
+    if id_producto:
+        actualizar_costo_producto(id_producto)
+    
     cursor.close()
     return jsonify({"mensaje": "Receta eliminada correctamente"})
 
@@ -252,5 +307,9 @@ def delete_recetas_producto(producto_id):
     cursor = mysql.connection.cursor()
     cursor.execute("DELETE FROM recetas WHERE id_producto = %s", (producto_id,))
     mysql.connection.commit()
+    
+    # ACTUALIZAR COSTO DEL PRODUCTO AUTOMÁTICAMENTE
+    actualizar_costo_producto(producto_id)
+    
     cursor.close()
     return jsonify({"mensaje": "Recetas del producto eliminadas correctamente"})
