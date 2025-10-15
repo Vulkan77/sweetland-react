@@ -102,9 +102,11 @@ export const pedidosService = {
     }
   },
 
-  // Actualizar estado del pedido
+  // Actualizar estado del pedido - VERSIÓN CORREGIDA
   async updateEstadoPedido(pedidoId, nuevoEstado) {
     try {
+      console.log('🔍 Intentando actualizar estado:', { pedidoId, nuevoEstado });
+      
       const response = await fetch(`${API_URL}/pedidos/${pedidoId}/estado`, {
         method: 'PUT',
         headers: {
@@ -114,11 +116,26 @@ export const pedidosService = {
         body: JSON.stringify({ estado: nuevoEstado })
       });
       
+      console.log('🔍 Respuesta del servidor - Status:', response.status);
+      console.log('🔍 Respuesta del servidor - OK:', response.ok);
+      
       if (!response.ok) {
-        throw new Error('Error al actualizar estado del pedido');
+        // Obtener el mensaje de error real del servidor
+        let errorMessage = `Error ${response.status}: ${response.statusText}`;
+        try {
+          const errorData = await response.json();
+          console.error('🔍 Error del servidor:', errorData);
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          console.error('🔍 No se pudo parsear error del servidor');
+        }
+        throw new Error(errorMessage);
       }
       
-      return await response.json();
+      const result = await response.json();
+      console.log('🔍 Respuesta exitosa:', result);
+      return result;
+      
     } catch (error) {
       console.error('Error en pedidosService.updateEstadoPedido:', error);
       throw error;

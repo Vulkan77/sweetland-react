@@ -6,6 +6,7 @@ import Register from './components/Register';
 import ProductosList from './components/productos/ProductosList';
 import PedidosList from './components/pedidos/PedidosList';
 import IngredientesList from "./components/ingredientes/IngredientesList";
+import RecetasList from "./components/recetas/RecetasList";
 
 function App() {
   const [activeSection, setActiveSection] = useState('inicio');
@@ -93,6 +94,8 @@ function App() {
         return <PedidosList />;
       case 'ingredientes':
         return <IngredientesList />;
+      case 'recetas':
+        return <RecetasList />;
       case 'inicio':
       default:
         return (
@@ -198,6 +201,14 @@ function App() {
                 onClick={() => setActiveSection('ingredientes')}
               >
                 🧂 Ingredientes
+              </button>
+            </li>
+            <li className="nav-item">
+              <button 
+                className={`nav-link w-100 text-start ${activeSection === 'recetas' ? 'active' : ''}`}
+                onClick={() => setActiveSection('recetas')}
+              >
+                📋 Recetas
               </button>
             </li>
           </ul>
