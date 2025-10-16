@@ -2,6 +2,9 @@ from flask import Blueprint, jsonify, request
 from flask_login import login_required
 from extensions import mysql
 import logging
+from werkzeug.security import generate_password_hash
+import secrets
+import string
 
 # Configurar logging
 logging.basicConfig(level=logging.DEBUG)
@@ -304,8 +307,7 @@ def create_pedido():
         data = request.get_json()
         
         usuario_id = data.get("usuario_id")
-        cliente_nombre = data.get("cliente_nombre")
-        cliente_telefono = data.get("cliente_telefono")
+        cliente_telefono = data.get("telefono")
         direccion = data.get("direccion")
         total = data.get("total", 0)
         
@@ -314,25 +316,28 @@ def create_pedido():
         # Verificar si existe el campo 'estado'
         cursor.execute("SHOW COLUMNS FROM pedidos LIKE 'estado'")
         tiene_estado = cursor.fetchone()
-        
+
         if tiene_estado:
             cursor.execute("""
-                INSERT INTO pedidos (usuario_id, cliente_nombre, cliente_telefono, direccion, total, estado, fecha_pedido)
-                VALUES (%s, %s, %s, %s, %s, 'pendiente', NOW())
-            """, (usuario_id, cliente_nombre, cliente_telefono, direccion, total))
+                INSERT INTO pedidos (usuario_id, telefono, direccion, total, estado, fecha_pedido)
+                VALUES (%s, %s, %s, %s, 'pendiente', NOW())
+            """, (usuario_id, cliente_telefono, direccion, total))
         else:
             cursor.execute("""
-                INSERT INTO pedidos (usuario_id, cliente_nombre, cliente_telefono, direccion, total, fecha_pedido)
-                VALUES (%s, %s, %s, %s, %s, NOW())
-            """, (usuario_id, cliente_nombre, cliente_telefono, direccion, total))
+                INSERT INTO pedidos (usuario_id, telefono, direccion, total, fecha_pedido)
+                VALUES (%s, %s, %s, %s, NOW())
+            """, (usuario_id, cliente_telefono, direccion, total))
         
         pedido_id = cursor.lastrowid
         mysql.connection.commit()
         cursor.close()
         
+        # ✅ DEBUG: Verificar qué ID se está devolviendo
+        print(f"🎯 [BACKEND] Pedido creado con ID: {pedido_id}")
+        
         return jsonify({
             "mensaje": "Pedido creado correctamente",
-            "id_pedido": pedido_id
+            "id_pedido": pedido_id  # ← Asegúrate de que esto sea correcto
         }), 201
         
     except Exception as e:
@@ -368,4 +373,125 @@ def update_estado_pedido(id):
         
     except Exception as e:
         logger.error(f"Error en update_estado_pedido: {str(e)}")
+        return jsonify({"error": f"Error del servidor: {str(e)}"}), 500
+
+@pedidos_bp.route("/usuarios", methods=["GET"])
+@login_required
+def get_usuarios():
+    try:
+        cursor = mysql.connection.cursor()
+        cursor.execute("""
+            SELECT id_usuario, nombre, telefono, email, direccion 
+            FROM usuarios 
+            WHERE rol = 'cliente'
+            ORDER BY nombre
+        """)
+        filas = cursor.fetchall()
+        cursor.close()
+
+        usuarios = []
+        for f in filas:
+            usuarios.append({
+                "id_usuario": f[0],
+                "nombre": f[1],
+                "telefono": f[2] or "",
+                "email": f[3] or "",
+                "direccion": f[4] or ""
+            })
+        
+        return jsonify(usuarios)
+        
+    except Exception as e:
+        logger.error(f"Error en get_usuarios: {str(e)}")
+        return jsonify({"error": f"Error del servidor: {str(e)}"}), 500
+
+@pedidos_bp.route("/usuarios", methods=["POST"])
+@login_required
+def create_usuario():
+    try:
+        data = request.get_json()
+        
+        nombre = data.get("nombre")
+        email = data.get("email")
+        telefono = data.get("telefono", "")
+        direccion = data.get("direccion", "")
+        
+        # Validar campos obligatorios
+        if not nombre or not email:
+            return jsonify({"error": "Nombre y email son requeridos"}), 400
+        
+        # Generar un password temporal
+        password_temp = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(8))
+        password_hash = generate_password_hash(password_temp)
+        
+        cursor = mysql.connection.cursor()
+        
+        # Verificar si el email ya existe
+        cursor.execute("SELECT id_usuario FROM usuarios WHERE email = %s", (email,))
+        if cursor.fetchone():
+            cursor.close()
+            return jsonify({"error": "El email ya está registrado"}), 400
+        
+        cursor.execute("""
+            INSERT INTO usuarios (nombre, email, password, telefono, direccion, rol, fecha_registro)
+            VALUES (%s, %s, %s, %s, %s, 'cliente', NOW())
+        """, (nombre, email, password_hash, telefono, direccion))
+        
+        usuario_id = cursor.lastrowid
+        mysql.connection.commit()
+        cursor.close()
+        
+        return jsonify({
+            "mensaje": "Usuario creado correctamente",
+            "id_usuario": usuario_id,
+            "nombre": nombre,
+            "email": email,
+            "telefono": telefono,
+            "direccion": direccion,
+            "password_temporal": password_temp
+        }), 201
+        
+    except Exception as e:
+        logger.error(f"Error en create_usuario: {str(e)}")
+        return jsonify({"error": f"Error del servidor: {str(e)}"}), 500
+    
+@pedidos_bp.route("/<int:pedido_id>/agregar_detalle", methods=["POST"])
+@login_required
+def agregar_detalle_pedido(pedido_id):
+    try:
+        data = request.get_json()
+        
+        producto_id = data.get("producto_id")
+        cantidad = data.get("cantidad")
+        subtotal = data.get("subtotal")
+        
+        # Validar campos requeridos - SIN precio_unitario
+        if not all([producto_id, cantidad, subtotal]):
+            return jsonify({"error": "Todos los campos son requeridos"}), 400
+        
+        cursor = mysql.connection.cursor()
+        
+        # Verificar que el pedido existe
+        cursor.execute("SELECT id_pedido FROM pedidos WHERE id_pedido = %s", (pedido_id,))
+        if not cursor.fetchone():
+            cursor.close()
+            return jsonify({"error": "Pedido no encontrado"}), 404
+        
+        # CONSULTA CORREGIDA - sin precio_unitario
+        cursor.execute("""
+            INSERT INTO detalle_pedidos (pedido_id, producto_id, cantidad, subtotal)
+            VALUES (%s, %s, %s, %s)
+        """, (pedido_id, producto_id, cantidad, subtotal))
+        
+        detalle_id = cursor.lastrowid
+        mysql.connection.commit()
+        cursor.close()
+        
+        return jsonify({
+            "mensaje": "Detalle de pedido creado correctamente",
+            "id_detalle": detalle_id
+        }), 201
+        
+    except Exception as e:
+        logger.error(f"Error en agregar_detalle_pedido: {str(e)}")
         return jsonify({"error": f"Error del servidor: {str(e)}"}), 500

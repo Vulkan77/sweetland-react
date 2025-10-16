@@ -1,4 +1,3 @@
-// src/services/pedidosService.js
 const API_URL = 'http://localhost:5000';
 
 export const pedidosService = {
@@ -38,9 +37,72 @@ export const pedidosService = {
     }
   },
 
+  // Obtener usuarios
+  async getUsuarios() {
+    try {
+      const response = await fetch(`${API_URL}/pedidos/usuarios`, {
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error('Error al cargar usuarios');
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Error en pedidosService.getUsuarios:', error);
+      throw error;
+    }
+  },
+
+  // Crear nuevo usuario
+  async createUsuario(usuarioData) {
+    try {
+      console.log('🔍 [CREATE USUARIO] Datos enviados:', usuarioData);
+
+      const response = await fetch(`${API_URL}/pedidos/usuarios`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(usuarioData)
+      });
+      
+      console.log('🔍 [CREATE USUARIO] Respuesta:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      });
+      
+      if (!response.ok) {
+        let errorDetail = '';
+        try {
+          const errorData = await response.json();
+          errorDetail = errorData.error || 'Sin detalles';
+          console.error('🔍 [CREATE USUARIO] Error del servidor:', errorData);
+        } catch (e) {
+          errorDetail = await response.text();
+          console.error('🔍 [CREATE USUARIO] Error sin JSON:', errorDetail);
+        }
+        throw new Error(`Error al crear usuario: ${response.status} - ${errorDetail}`);
+      }
+      
+      const result = await response.json();
+      console.log('🔍 [CREATE USUARIO] Éxito:', result);
+      return result;
+      
+    } catch (error) {
+      console.error('❌ [CREATE USUARIO] Error completo:', error);
+      throw error;
+    }
+  },
+
   // Crear nuevo pedido
   async createPedido(pedidoData) {
     try {
+      console.log('🔍 [CREATE PEDIDO] Datos enviados:', pedidoData);
+
       const response = await fetch(`${API_URL}/pedidos`, {
         method: 'POST',
         headers: {
@@ -50,64 +112,80 @@ export const pedidosService = {
         body: JSON.stringify(pedidoData)
       });
       
+      console.log('🔍 [CREATE PEDIDO] Respuesta:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      });
+      
       if (!response.ok) {
-        throw new Error('Error al crear pedido');
+        let errorDetail = '';
+        try {
+          const errorData = await response.json();
+          errorDetail = errorData.error || 'Sin detalles';
+          console.error('🔍 [CREATE PEDIDO] Error del servidor:', errorData);
+        } catch (e) {
+          errorDetail = await response.text();
+          console.error('🔍 [CREATE PEDIDO] Error sin JSON:', errorDetail);
+        }
+        throw new Error(`Error al crear pedido: ${response.status} - ${errorDetail}`);
       }
       
-      return await response.json();
+      const result = await response.json();
+      console.log('🔍 [CREATE PEDIDO] Éxito:', result);
+      return result;
+      
     } catch (error) {
-      console.error('Error en pedidosService.createPedido:', error);
+      console.error('❌ [CREATE PEDIDO] Error completo:', error);
       throw error;
     }
   },
 
   // Actualizar pedido
-  // En el método updatePedido del pedidosService.js
-async updatePedido(pedidoId, pedidoData) {
-  try {
-    console.log('🔍 [UPDATE PEDIDO] Datos enviados:', {
-      pedidoId,
-      pedidoData
-    });
+  async updatePedido(pedidoId, pedidoData) {
+    try {
+      console.log('🔍 [UPDATE PEDIDO] Datos enviados:', {
+        pedidoId,
+        pedidoData
+      });
 
-    const response = await fetch(`${API_URL}/pedidos/${pedidoId}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-      body: JSON.stringify(pedidoData)
-    });
-    
-    console.log('🔍 [UPDATE PEDIDO] Respuesta del servidor:', {
-      status: response.status,
-      statusText: response.statusText,
-      ok: response.ok
-    });
-    
-    if (!response.ok) {
-      // Intentar obtener el mensaje de error detallado
-      let errorDetail = '';
-      try {
-        const errorData = await response.json();
-        errorDetail = errorData.error || 'Sin detalles';
-        console.error('🔍 [UPDATE PEDIDO] Error del servidor:', errorData);
-      } catch (e) {
-        errorDetail = await response.text();
-        console.error('🔍 [UPDATE PEDIDO] Error sin JSON:', errorDetail);
+      const response = await fetch(`${API_URL}/pedidos/${pedidoId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(pedidoData)
+      });
+      
+      console.log('🔍 [UPDATE PEDIDO] Respuesta:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      });
+      
+      if (!response.ok) {
+        let errorDetail = '';
+        try {
+          const errorData = await response.json();
+          errorDetail = errorData.error || 'Sin detalles';
+          console.error('🔍 [UPDATE PEDIDO] Error del servidor:', errorData);
+        } catch (e) {
+          errorDetail = await response.text();
+          console.error('🔍 [UPDATE PEDIDO] Error sin JSON:', errorDetail);
+        }
+        throw new Error(`Error al actualizar pedido: ${response.status} - ${errorDetail}`);
       }
-      throw new Error(`Error al actualizar pedido: ${response.status} - ${errorDetail}`);
+      
+      const result = await response.json();
+      console.log('🔍 [UPDATE PEDIDO] Éxito:', result);
+      return result;
+      
+    } catch (error) {
+      console.error('❌ [UPDATE PEDIDO] Error completo:', error);
+      throw error;
     }
-    
-    const result = await response.json();
-    console.log('🔍 [UPDATE PEDIDO] Éxito:', result);
-    return result;
-    
-  } catch (error) {
-    console.error('❌ [UPDATE PEDIDO] Error completo:', error);
-    throw error;
-  }
-},
+  },
 
   // Eliminar pedido
   async deletePedido(pedidoId) {
@@ -131,7 +209,7 @@ async updatePedido(pedidoId, pedidoData) {
   // Actualizar estado del pedido
   async updateEstadoPedido(pedidoId, nuevoEstado) {
     try {
-      console.log('🔍 Intentando actualizar estado:', { pedidoId, nuevoEstado });
+      console.log('🔍 [UPDATE ESTADO] Datos:', { pedidoId, nuevoEstado });
       
       const response = await fetch(`${API_URL}/pedidos/${pedidoId}/estado`, {
         method: 'PUT',
@@ -142,36 +220,39 @@ async updatePedido(pedidoId, pedidoData) {
         body: JSON.stringify({ estado: nuevoEstado })
       });
       
-      console.log('🔍 Respuesta del servidor - Status:', response.status);
-      console.log('🔍 Respuesta del servidor - OK:', response.ok);
+      console.log('🔍 [UPDATE ESTADO] Respuesta:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      });
       
       if (!response.ok) {
         let errorMessage = `Error ${response.status}: ${response.statusText}`;
         try {
           const errorData = await response.json();
-          console.error('🔍 Error del servidor:', errorData);
+          console.error('🔍 [UPDATE ESTADO] Error del servidor:', errorData);
           errorMessage = errorData.error || errorMessage;
         } catch (e) {
-          console.error('🔍 No se pudo parsear error del servidor');
+          console.error('🔍 [UPDATE ESTADO] No se pudo parsear error');
         }
         throw new Error(errorMessage);
       }
       
       const result = await response.json();
-      console.log('🔍 Respuesta exitosa:', result);
+      console.log('🔍 [UPDATE ESTADO] Éxito:', result);
       return result;
       
     } catch (error) {
-      console.error('Error en pedidosService.updateEstadoPedido:', error);
+      console.error('❌ [UPDATE ESTADO] Error completo:', error);
       throw error;
     }
   },
 
-  // NUEVOS MÉTODOS PARA GESTIÓN DE DETALLES
-
   // Crear nuevo detalle de pedido
   async createDetallePedido(detalleData) {
     try {
+      console.log('🔍 [CREATE DETALLE] Datos enviados:', detalleData);
+
       const response = await fetch(`${API_URL}/detalle_pedidos`, {
         method: 'POST',
         headers: {
@@ -181,13 +262,31 @@ async updatePedido(pedidoId, pedidoData) {
         body: JSON.stringify(detalleData)
       });
       
+      console.log('🔍 [CREATE DETALLE] Respuesta:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      });
+      
       if (!response.ok) {
-        throw new Error('Error al crear detalle del pedido');
+        let errorDetail = '';
+        try {
+          const errorData = await response.json();
+          errorDetail = errorData.error || 'Sin detalles';
+          console.error('🔍 [CREATE DETALLE] Error del servidor:', errorData);
+        } catch (e) {
+          errorDetail = await response.text();
+          console.error('🔍 [CREATE DETALLE] Error sin JSON:', errorDetail);
+        }
+        throw new Error(`Error al crear detalle: ${response.status} - ${errorDetail}`);
       }
       
-      return await response.json();
+      const result = await response.json();
+      console.log('🔍 [CREATE DETALLE] Éxito:', result);
+      return result;
+      
     } catch (error) {
-      console.error('Error en pedidosService.createDetallePedido:', error);
+      console.error('❌ [CREATE DETALLE] Error completo:', error);
       throw error;
     }
   },
@@ -234,21 +333,47 @@ async updatePedido(pedidoId, pedidoData) {
     }
   },
 
-  // Obtener todos los detalles (para debugging)
-  async getTodosDetalles() {
+    // Crear detalle de pedido - ENDPOINT ALTERNATIVO
+  async createDetallePedidoAlternativo(pedidoId, detalleData) {
     try {
-      const response = await fetch(`${API_URL}/detalle_pedidos`, {
-        credentials: 'include'
+      console.log('🔍 [CREATE DETALLE ALT] Datos:', { pedidoId, detalleData });
+
+      const response = await fetch(`${API_URL}/pedidos/${pedidoId}/agregar_detalle`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(detalleData)
+      });
+      
+      console.log('🔍 [CREATE DETALLE ALT] Respuesta:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
       });
       
       if (!response.ok) {
-        throw new Error('Error al cargar todos los detalles');
+        let errorDetail = '';
+        try {
+          const errorData = await response.json();
+          errorDetail = errorData.error || 'Sin detalles';
+          console.error('🔍 [CREATE DETALLE ALT] Error del servidor:', errorData);
+        } catch (e) {
+          errorDetail = await response.text();
+          console.error('🔍 [CREATE DETALLE ALT] Error sin JSON:', errorDetail);
+        }
+        throw new Error(`Error al crear detalle: ${response.status} - ${errorDetail}`);
       }
       
-      return await response.json();
+      const result = await response.json();
+      console.log('🔍 [CREATE DETALLE ALT] Éxito:', result);
+      return result;
+      
     } catch (error) {
-      console.error('Error en pedidosService.getTodosDetalles:', error);
+      console.error('❌ [CREATE DETALLE ALT] Error completo:', error);
       throw error;
     }
   }
 };
+

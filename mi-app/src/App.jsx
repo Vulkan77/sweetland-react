@@ -32,7 +32,17 @@ function App() {
       
       if (response.ok) {
         const userData = await response.json();
-        setUser(userData.usuario || userData);
+        const usuario = userData.usuario || userData;
+        
+        // ✅ VERIFICAR SI ES ADMIN AL CARGAR LA APP
+        if (usuario.rol !== 'admin') {
+          console.log('❌ Cliente detectado en checkAuth, bloqueando acceso');
+          await handleLogout();
+          setCurrentView('login');
+          return;
+        }
+        
+        setUser(usuario);
         setCurrentView('app');
       } else {
         setCurrentView('login');
@@ -58,9 +68,26 @@ function App() {
 
       if (response.ok) {
         const data = await response.json();
-        setUser(data.usuario);
+        const usuario = data.usuario;
+        
+        // ✅ VERIFICAR SI ES ADMIN DESPUÉS DEL LOGIN
+        if (usuario.rol !== 'admin') {
+          console.log('❌ Cliente detectado, bloqueando acceso al panel');
+          // Cerrar sesión inmediatamente
+          await fetch('http://localhost:5000/auth/logout', {
+            method: 'POST',
+            credentials: 'include'
+          });
+          return { 
+            success: false, 
+            error: '❌ Acceso denegado. Solo personal autorizado puede acceder al panel administrativo.' 
+          };
+        }
+        
+        // ✅ ES ADMIN - Permitir acceso
+        setUser(usuario);
         setCurrentView('app');
-        return { success: true };
+        return { success: true, user: usuario };
       } else {
         const errorData = await response.json();
         return { success: false, error: errorData.error };
@@ -140,7 +167,10 @@ function App() {
           <div className="navbar-nav ms-auto">
             {user ? (
               <div className="d-flex align-items-center gap-3">
-                <span className="navbar-text text-white">👋 Hola, {user.nombre}</span>
+                <span className="navbar-text text-white">
+                  👋 Hola, {user.nombre} 
+                  <small className="d-block text-warning">👑 Administrador</small>
+                </span>
                 <button 
                   className="btn btn-outline-light btn-sm"
                   onClick={handleLogout}

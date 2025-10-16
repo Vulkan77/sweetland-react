@@ -18,6 +18,22 @@ const Login = ({ onLogin, onShowRegister }) => {
       
       if (!result.success) {
         setError(result.error);
+      } else {
+        // ✅ VERIFICAR SI ES ADMIN DESPUÉS DEL LOGIN EXITOSO
+        if (result.user.rol !== 'admin') {
+          console.log('❌ Cliente detectado, bloqueando acceso al panel');
+          
+          // Cerrar sesión inmediatamente
+          await fetch('/auth/logout', {
+            method: 'POST',
+            credentials: 'include'
+          });
+          
+          setError('❌ Acceso denegado. Solo personal autorizado puede acceder al panel administrativo.');
+          return;
+        }
+        
+        console.log('✅ Admin autenticado, acceso permitido al panel');
       }
     } catch (err) {
       console.error('🔍 Error en login:', err);
@@ -141,8 +157,8 @@ const Login = ({ onLogin, onShowRegister }) => {
 
           {error && (
             <div style={{
-              backgroundColor: '#f8d7da',
-              color: '#721c24',
+              backgroundColor: error.includes('Acceso denegado') ? '#f8d7da' : '#f8d7da',
+              color: error.includes('Acceso denegado') ? '#721c24' : '#721c24',
               padding: '10px',
               borderRadius: '6px',
               marginTop: '20px',
@@ -153,7 +169,8 @@ const Login = ({ onLogin, onShowRegister }) => {
             </div>
           )}
 
-          <div style={{
+          {/* ⚠️ ELIMINADA LA SECCIÓN DE REGISTRO */}
+          {/* <div style={{
             textAlign: 'center',
             marginTop: '20px',
             paddingTop: '20px',
@@ -175,7 +192,7 @@ const Login = ({ onLogin, onShowRegister }) => {
                 Registrarse
               </button>
             </small>
-          </div>
+          </div> */}
         </div>
       </div>
     </div>

@@ -104,17 +104,40 @@ const PedidosList = () => {
   };
 
   const handleCrearPedido = async (pedidoData) => {
-    try {
-      setError('');
-      await pedidosService.createPedido(pedidoData);
-      await cargarDatosIniciales();
-      cerrarModalNuevoPedido();
-    } catch (error) {
-      console.error('Error creando pedido:', error);
-      setError('No se pudo crear el pedido');
-      throw error;
-    }
+  try {
+    setError('');
+    // ❌ ELIMINAR ESTA LÍNEA - el pedido ya se creó en el formulario
+    // await pedidosService.createPedido(pedidoData);
+    
+    // ✅ Solo recargar la lista para mostrar el nuevo pedido
+    await cargarDatosIniciales();
+    cerrarModalNuevoPedido();
+  } catch (error) {
+    console.error('Error creando pedido:', error);
+    setError('No se pudo crear el pedido');
+    throw error;
+  }
+};
+
+useEffect(() => {
+  const handlePedidoCreado = () => {
+    console.log('🔄 Recargando lista por pedido creado...');
+    cargarDatosIniciales();
   };
+
+  const handlePedidoActualizado = () => {
+    console.log('🔄 Recargando lista por pedido actualizado...');
+    cargarDatosIniciales();
+  };
+
+  window.addEventListener('pedidoCreado', handlePedidoCreado);
+  window.addEventListener('pedidoActualizado', handlePedidoActualizado);
+
+  return () => {
+    window.removeEventListener('pedidoCreado', handlePedidoCreado);
+    window.removeEventListener('pedidoActualizado', handlePedidoActualizado);
+  };
+}, []);
 
   const handleEditarPedido = async (pedidoId, pedidoData) => {
     try {
@@ -591,23 +614,34 @@ const PedidosList = () => {
 
       {/* Modal para nuevo pedido */}
       {mostrarModalNuevoPedido && (
-        <PedidoForm
-          productos={productos}
-          onSubmit={handleCrearPedido}
-          onClose={cerrarModalNuevoPedido}
-          titulo="➕ Crear Nuevo Pedido"
-        />
+      <PedidoForm
+      productos={productos}
+      onSubmit={handleCrearPedido}
+      onClose={() => {
+      cerrarModalNuevoPedido();
+      cargarDatosIniciales(); // ← SOLO AGREGAR ESTA LÍNEA
+      }}
+      titulo="➕ Crear Nuevo Pedido"
+      />
       )}
 
-      {/* Modal para editar pedido */}
       {mostrarModalEditarPedido && pedidoParaEditar && (
-        <EditarPedidoModal
-          pedido={pedidoParaEditar}
-          productos={productos}
-          onSubmit={handleEditarPedido}
-          onClose={cerrarModalEditarPedido}
-        />
-      )}
+  <EditarPedidoModal
+    pedido={pedidoParaEditar}
+    productos={productos}
+    onSubmit={handleEditarPedido}
+    onClose={() => {
+      cerrarModalEditarPedido();
+      cargarDatosIniciales(); // ← Actualizar lista general
+      
+      // ✅ SI ESTÁS VIENDO LOS DETALLES DE ESE PEDIDO, RECARGARLOS TAMBIÉN
+      if (pedidoSeleccionado === pedidoParaEditar.id) {
+        console.log('🔄 Recargando detalles del pedido editado...');
+        cargarDetallesPedido(pedidoParaEditar.id);
+      }
+    }}
+  />
+)}
     </div>
   );
 };

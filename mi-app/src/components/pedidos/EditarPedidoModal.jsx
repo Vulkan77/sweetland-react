@@ -55,13 +55,19 @@ const EditarPedidoModal = ({ pedido, productos, onSubmit, onClose }) => {
 
   const eliminarProducto = async (detalle, index) => {
     try {
+      // Si el detalle ya existe en la BD (tiene ID), eliminarlo del backend
       if (detalle.id && !detalle.esNuevo) {
         await pedidosService.deleteDetallePedido(detalle.id);
+        console.log('✅ Producto eliminado de la BD:', detalle.id);
       }
+      
+      // Eliminar de la lista local
       setDetalles(prev => prev.filter((_, i) => i !== index));
+      console.log('✅ Producto eliminado de la lista');
+      
     } catch (error) {
-      console.error('Error eliminando producto:', error);
-      setError('Error al eliminar el producto');
+      console.error('❌ Error eliminando producto:', error);
+      setError('Error al eliminar el producto del pedido');
     }
   };
 
@@ -72,48 +78,53 @@ const EditarPedidoModal = ({ pedido, productos, onSubmit, onClose }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setGuardando(true);
+    setError('');
     
     try {
-      // INCLUIR TODOS LOS CAMPOS REQUERIDOS POR LA BASE DE DATOS
+      // 1. Actualizar el pedido principal
       const pedidoData = {
         cliente_nombre: pedido.cliente_nombre,
         cliente_telefono: pedido.cliente_telefono,
-        telefono: pedido.cliente_telefono, // Campo requerido por la DB
+        telefono: pedido.cliente_telefono,
         direccion: pedido.direccion,
         total: calcularTotal(),
-        estado: pedido.estado // Mantener el estado actual
+        estado: pedido.estado
       };
 
       console.log('📤 Actualizando pedido con datos:', pedidoData);
-
-      // 1. Actualizar el pedido principal
       await pedidosService.updatePedido(pedido.id, pedidoData);
       console.log('✅ Pedido actualizado exitosamente');
 
-      // 2. Crear nuevos detalles
+      // 2. Crear nuevos detalles usando el endpoint alternativo
       const nuevosDetalles = detalles.filter(detalle => detalle.esNuevo);
-      console.log(`📝 Creando ${nuevosDetalles.length} nuevos detalles`);
+      console.log(`📝 Creando ${nuevosDetalles.length} nuevos detalles con endpoint alternativo`);
 
       for (const detalle of nuevosDetalles) {
-        await pedidosService.createDetallePedido({
-          pedido_id: pedido.id,
-          producto_id: detalle.producto_id,
-          cantidad: detalle.cantidad,
-          precio_unitario: detalle.precio_unitario,
-          subtotal: detalle.subtotal
-        });
+        try {
+          await pedidosService.createDetallePedidoAlternativo(pedido.id, {
+            producto_id: detalle.producto_id,
+            cantidad: detalle.cantidad,
+            precio_unitario: detalle.precio_unitario,
+            subtotal: detalle.subtotal
+          });
+          console.log(`✅ Detalle creado para producto ${detalle.producto_nombre}`);
+        } catch (detalleError) {
+          console.error(`❌ Error creando detalle:`, detalleError);
+          throw new Error(`Error al agregar producto ${detalle.producto_nombre}: ${detalleError.message}`);
+        }
       }
 
-      console.log('✅ Proceso completado');
+      console.log('✅ Proceso completado con endpoint alternativo');
+      
+      // ✅ Emitir evento para actualizar la lista
+      window.dispatchEvent(new CustomEvent('pedidoActualizado', {
+        detail: { pedidoId: pedido.id }
+      }));
+      
       onClose();
       
-      // Recargar después de un breve delay
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
-      
     } catch (error) {
-      console.error('❌ Error:', error);
+      console.error('❌ Error general:', error);
       setError('Error al actualizar el pedido: ' + error.message);
     } finally {
       setGuardando(false);
@@ -139,14 +150,14 @@ const EditarPedidoModal = ({ pedido, productos, onSubmit, onClose }) => {
 
   return (
     <div className="modal fade show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
-      <div className="modal-dialog modal-lg">
-        <div className="modal-content">
+      <div className="modal-dialog modal-xl" style={{maxWidth: '95%', height: '95vh'}}>
+        <div className="modal-content h-100">
           <div className="modal-header bg-warning text-dark">
             <h5 className="modal-title">✏️ Editar Pedido #{pedido.id}</h5>
             <button type="button" className="btn-close" onClick={onClose}></button>
           </div>
           <form onSubmit={handleSubmit}>
-            <div className="modal-body">
+            <div className="modal-body" style={{overflowY: 'auto', maxHeight: 'calc(95vh - 120px)'}}>
               {error && <div className="alert alert-danger">{error}</div>}
 
               <div className="row mb-3">
@@ -258,6 +269,7 @@ const EditarPedidoModal = ({ pedido, productos, onSubmit, onClose }) => {
                                   type="button"
                                   className="btn btn-danger btn-sm"
                                   onClick={() => eliminarProducto(detalle, index)}
+                                  title="Eliminar producto"
                                 >
                                   🗑️
                                 </button>
